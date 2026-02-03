@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using GScore.Application.Exceptions;
+using GScore.Presentation.Commons;
+
 namespace GScore.Presentation.Middlewares;
 
 public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger, IOptions<JsonOptions> jsonOptions)
@@ -38,8 +40,9 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             logger.LogWarning(ex.Message, "Handled exception");
 
         context.Response.StatusCode = statusCode;
-        await context.Response.WriteAsJsonAsync(apiError, _json);
 
+        var response = ApiResponse<object>.ErrorResponse(apiError);
+        await context.Response.WriteAsJsonAsync(response, _json);
     }
 
     private static (int StatusCode, ApiError Error) ResolveException(Exception ex)
@@ -47,7 +50,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         return ex switch
         {
             FluentValidation.ValidationException fvex => (StatusCodes.Status400BadRequest, BuildValidationError(fvex)),
-            NotFoundException => (StatusCodes.Status404NotFound, new ApiError("NotFound", ex.Message, null)),
+            NotFoundException nfex => (StatusCodes.Status404NotFound, new ApiError(nfex.Error.Code, nfex.Error.Message, null)),
             ConflictException => (StatusCodes.Status409Conflict, new ApiError("Conflict", ex.Message, null)),
             AuthenticationException => (StatusCodes.Status401Unauthorized, new ApiError("Unauthorized", ex.Message, null)),
             _ => (StatusCodes.Status500InternalServerError, new ApiError("ServerError", "An unexpected error occurred.", null))

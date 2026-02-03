@@ -7,8 +7,8 @@ namespace GScore.Infrastructure.Data;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options), IApplicationDbContext
 {
-    public DbSet<CodeSessionEntity> CodeSessions { get; set; }
-    public DbSet<CodeExecutionEntity> CodeExecutions { get; set; }
+    public DbSet<StudentEntity> Students { get; set; }
+    public DbSet<ExamScoreEntity> ExamScores { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

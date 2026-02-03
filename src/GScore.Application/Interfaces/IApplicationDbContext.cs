@@ -5,7 +5,7 @@ namespace GScore.Application.Interfaces;
 
 public interface IApplicationDbContext
 {
-    DbSet<CodeSessionEntity> CodeSessions { get; set; }
-    DbSet<CodeExecutionEntity> CodeExecutions { get; set; }
+    DbSet<StudentEntity> Students { get; set; }
+    DbSet<ExamScoreEntity> ExamScores { get; set; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
