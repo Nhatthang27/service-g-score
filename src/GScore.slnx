@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="../docker/docker-compose.yml" />
+    <File Path="scripts/add-migration.ps1" />
+    <File Path="scripts/update-database.ps1" />
+  </Folder>
+  <Project Path="GScore.Presentation/GScore.Presentation.csproj" />
+  <Project Path="GScore.Application/GScore.Application.csproj" />
+  <Project Path="GScore.Domain/GScore.Domain.csproj" />
+  <Project Path="GScore.Infrastructure/GScore.Infrastructure.csproj" />
+</Solution>
