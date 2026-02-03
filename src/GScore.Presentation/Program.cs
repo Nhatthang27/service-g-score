@@ -8,6 +8,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel for large file uploads
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = null; // No limit
+});
+
 builder.Services.AddControllers();
 builder.Services.AddSwaggerConfiguration(builder.Configuration);
 builder.Services.AddJsonOptions();

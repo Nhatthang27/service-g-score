@@ -1,5 +1,3 @@
-using Hangfire;
-using Hangfire.Redis.StackExchange;
 using GScore.Application.Interfaces;
 using GScore.Infrastructure.Data;
 using GScore.Infrastructure.Services;
@@ -22,6 +20,9 @@ public static class DependencyInjection
 
     private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
     {
+        // Register PostgresSetting with IOptions pattern
+        services.Configure<PostgresSetting>(configuration.GetSection(PostgresSetting.SectionName));
+
         var postgresSetting = configuration
             .GetSection(PostgresSetting.SectionName)
             .Get<PostgresSetting>()
