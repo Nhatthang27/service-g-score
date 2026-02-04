@@ -58,6 +58,11 @@ public class ExamScoreConfiguration : IEntityTypeConfiguration<ExamScoreEntity>
             .HasDatabaseName("ix_exam_scores_student_subject")
             .IsUnique();
 
+        // Composite index for statistics queries (subject + score)
+        builder.HasIndex(x => new { x.Subject, x.Score })
+            .HasDatabaseName("ix_exam_scores_subject_score")
+            .HasFilter("deleted_at IS NULL AND score IS NOT NULL");
+
         builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }

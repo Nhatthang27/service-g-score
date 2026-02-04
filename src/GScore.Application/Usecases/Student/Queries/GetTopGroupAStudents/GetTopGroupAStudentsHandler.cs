@@ -11,22 +11,22 @@ public class GetTopGroupAStudentsHandler(IApplicationDbContext context)
 {
     public async Task<List<TopStudentDto>> Handle(GetTopGroupAStudentsQuery request, CancellationToken cancellationToken)
     {
-        var studentsWithGroupA = await context.Students
+        // Query directly from ExamScores, group by student, compute in database
+        var topStudents = await context.ExamScores
             .AsNoTracking()
-            .Include(s => s.Scores)
-            .Where(s => s.Scores.Any(sc => sc.Subject == SubjectType.Toan && sc.Score.HasValue) &&
-                        s.Scores.Any(sc => sc.Subject == SubjectType.VatLi && sc.Score.HasValue) &&
-                        s.Scores.Any(sc => sc.Subject == SubjectType.HoaHoc && sc.Score.HasValue))
-            .Select(s => new
+            .Where(e => e.Score.HasValue &&
+                        (e.Subject == SubjectType.Toan ||
+                         e.Subject == SubjectType.VatLi ||
+                         e.Subject == SubjectType.HoaHoc))
+            .GroupBy(e => new { e.StudentId, e.Student!.RegistrationNumber })
+            .Where(g => g.Count() == 3) // Must have all 3 subjects
+            .Select(g => new
             {
-                s.RegistrationNumber,
-                MathScore = s.Scores.First(sc => sc.Subject == SubjectType.Toan).Score!.Value,
-                PhysicsScore = s.Scores.First(sc => sc.Subject == SubjectType.VatLi).Score!.Value,
-                ChemistryScore = s.Scores.First(sc => sc.Subject == SubjectType.HoaHoc).Score!.Value
+                g.Key.RegistrationNumber,
+                MathScore = g.Where(e => e.Subject == SubjectType.Toan).Select(e => e.Score!.Value).FirstOrDefault(),
+                PhysicsScore = g.Where(e => e.Subject == SubjectType.VatLi).Select(e => e.Score!.Value).FirstOrDefault(),
+                ChemistryScore = g.Where(e => e.Subject == SubjectType.HoaHoc).Select(e => e.Score!.Value).FirstOrDefault()
             })
-            .ToListAsync(cancellationToken);
-
-        var topStudents = studentsWithGroupA
             .Select(s => new
             {
                 s.RegistrationNumber,
@@ -38,6 +38,9 @@ public class GetTopGroupAStudentsHandler(IApplicationDbContext context)
             .OrderByDescending(s => s.TotalScore)
             .ThenBy(s => s.RegistrationNumber)
             .Take(10)
+            .ToListAsync(cancellationToken);
+
+        return topStudents
             .Select((s, index) => new TopStudentDto(
                 index + 1,
                 s.RegistrationNumber,
@@ -46,7 +49,5 @@ public class GetTopGroupAStudentsHandler(IApplicationDbContext context)
                 s.ChemistryScore,
                 s.TotalScore))
             .ToList();
-
-        return topStudents;
     }
 }

@@ -11,25 +11,32 @@ public class GetScoreStatisticsHandler(IApplicationDbContext context)
 {
     public async Task<List<SubjectStatisticsDto>> Handle(GetScoreStatisticsQuery request, CancellationToken cancellationToken)
     {
-        var scores = await context.ExamScores
+        // Aggregate directly in database for better performance
+        var statistics = await context.ExamScores
             .AsNoTracking()
             .Where(s => s.Score.HasValue)
-            .Select(s => new { s.Subject, s.Score })
+            .GroupBy(s => s.Subject)
+            .Select(g => new
+            {
+                Subject = g.Key,
+                ExcellentCount = g.Count(s => s.Score >= 8.0m),
+                GoodCount = g.Count(s => s.Score >= 6.0m && s.Score < 8.0m),
+                AverageCount = g.Count(s => s.Score >= 4.0m && s.Score < 6.0m),
+                BelowAverageCount = g.Count(s => s.Score < 4.0m),
+                TotalCount = g.Count()
+            })
             .ToListAsync(cancellationToken);
 
-        var statistics = scores
-            .GroupBy(s => s.Subject)
-            .Select(g => new SubjectStatisticsDto(
-                GetSubjectName(g.Key),
-                g.Count(s => s.Score >= 8.0m),
-                g.Count(s => s.Score >= 6.0m && s.Score < 8.0m),
-                g.Count(s => s.Score >= 4.0m && s.Score < 6.0m),
-                g.Count(s => s.Score < 4.0m),
-                g.Count()))
+        return statistics
+            .Select(s => new SubjectStatisticsDto(
+                GetSubjectName(s.Subject),
+                s.ExcellentCount,
+                s.GoodCount,
+                s.AverageCount,
+                s.BelowAverageCount,
+                s.TotalCount))
             .OrderBy(s => s.Subject)
             .ToList();
-
-        return statistics;
     }
 
     private static string GetSubjectName(SubjectType subject) => subject switch
