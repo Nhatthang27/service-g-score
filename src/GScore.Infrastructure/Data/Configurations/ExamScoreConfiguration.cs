@@ -63,6 +63,11 @@ public class ExamScoreConfiguration : IEntityTypeConfiguration<ExamScoreEntity>
             .HasDatabaseName("ix_exam_scores_subject_score")
             .HasFilter("deleted_at IS NULL AND score IS NOT NULL");
 
+        // Covering index for Group A query (subject, student_id, score)
+        builder.HasIndex(x => new { x.Subject, x.StudentId, x.Score })
+            .HasDatabaseName("ix_exam_scores_group_a")
+            .HasFilter("deleted_at IS NULL AND score IS NOT NULL AND subject IN ('TOAN', 'VATLI', 'HOAHOC')");
+
         builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }
