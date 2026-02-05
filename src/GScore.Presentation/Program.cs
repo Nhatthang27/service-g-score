@@ -19,12 +19,17 @@ builder.Services.AddJsonOptions();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-var corsOrigins = builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:5173";
+var defaultOrigin = "http://localhost:5173";
+var corsOrigins = builder.Configuration["Cors:AllowedOrigins"];
+var origins = string.IsNullOrEmpty(corsOrigins)
+    ? new[] { defaultOrigin }
+    : new[] { defaultOrigin }.Concat(corsOrigins.Split(",")).ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins(corsOrigins)
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
