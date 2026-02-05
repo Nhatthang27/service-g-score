@@ -1,4 +1,5 @@
 using GScore.Application.DTOs;
+using GScore.Application.Exceptions.Errors;
 using GScore.Application.Usecases.Student.Commands.ImportStudents;
 using GScore.Application.Usecases.Student.Queries.GetStudentByRegistration;
 using GScore.Application.Usecases.Student.Queries.GetTopGroupAStudents;
@@ -22,7 +23,7 @@ public class StudentsController(IMediator mediator) : ControllerBase
         if (file == null || file.Length == 0)
         {
             return BadRequest(ApiResponse<ImportResultDto>.ErrorResponse(
-                new ApiError("INVALID_FILE", "No file uploaded or file is empty.", null)));
+                new ApiError(CsvFileErrors.EmptyCsvFile.Code, CsvFileErrors.EmptyCsvFile.Message, null)));
         }
 
         using var stream = file.OpenReadStream();

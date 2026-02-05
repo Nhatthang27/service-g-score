@@ -11,7 +11,6 @@ public class GetScoreStatisticsHandler(IApplicationDbContext context)
 {
     public async Task<List<SubjectStatisticsDto>> Handle(GetScoreStatisticsQuery request, CancellationToken cancellationToken)
     {
-        // Aggregate directly in database for better performance
         var statistics = await context.ExamScores
             .AsNoTracking()
             .Where(s => s.Score.HasValue)

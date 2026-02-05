@@ -32,10 +32,8 @@ public class CsvImportService : ICsvImportService
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        // Pre-import: Clear data and optimize tables
         await ExecutePreImportAsync(connection, cancellationToken);
 
-        // Collect exam scores to write after students
         var examScores = new List<(Guid StudentId, SubjectType Subject, decimal? Score, DateTimeOffset CreatedAt)>();
 
         try
@@ -55,7 +53,6 @@ public class CsvImportService : ICsvImportService
 
             var now = DateTimeOffset.UtcNow;
 
-            // Phase 1: Write students using binary COPY
             await using (var studentWriter = await connection.BeginBinaryImportAsync(
                 "COPY students (id, registration_number, foreign_language_code, created_at) FROM STDIN (FORMAT BINARY)",
                 cancellationToken))
@@ -69,7 +66,6 @@ public class CsvImportService : ICsvImportService
                         var registrationNumber = csv.GetField<string>("sbd") ?? string.Empty;
                         var foreignLanguageCode = GetNullableString(csv, "ma_ngoai_ngu");
 
-                        // Write student row
                         await studentWriter.StartRowAsync(cancellationToken);
                         await studentWriter.WriteAsync(studentId, NpgsqlDbType.Uuid, cancellationToken);
                         await studentWriter.WriteAsync(registrationNumber, NpgsqlDbType.Text, cancellationToken);
@@ -81,7 +77,6 @@ public class CsvImportService : ICsvImportService
 
                         await studentWriter.WriteAsync(now, NpgsqlDbType.TimestampTz, cancellationToken);
 
-                        // Collect exam scores for phase 2
                         CollectScore(examScores, studentId, SubjectType.Toan, csv, "toan", now);
                         CollectScore(examScores, studentId, SubjectType.NguVan, csv, "ngu_van", now);
                         CollectScore(examScores, studentId, SubjectType.NgoaiNgu, csv, "ngoai_ngu", now);
@@ -105,18 +100,15 @@ public class CsvImportService : ICsvImportService
                     }
                 }
 
-                // Complete students COPY
                 await studentWriter.CompleteAsync(cancellationToken);
-            } // studentWriter is disposed here, connection is freed
+            } 
 
             Console.WriteLine($"[CSV Import] Students COPY completed. Total: {successCount:N0}");
 
-            // Phase 2: Write exam scores using binary COPY (connection is now free)
             await WriteExamScoresAsync(connection, examScores, cancellationToken);
         }
         finally
         {
-            // Post-import: Recreate indexes and restore settings
             await ExecutePostImportAsync(connection, cancellationToken);
         }
 
@@ -200,20 +192,16 @@ public class CsvImportService : ICsvImportService
 
         var commands = new[]
         {
-            // Clear existing data (TRUNCATE is faster than DELETE)
             "TRUNCATE TABLE exam_scores, students RESTART IDENTITY CASCADE",
 
-            // Set tables to UNLOGGED (no WAL = faster writes)
             "ALTER TABLE students SET UNLOGGED",
             "ALTER TABLE exam_scores SET UNLOGGED",
 
-            // Drop indexes for faster inserts
             "DROP INDEX IF EXISTS ix_students_registration_number",
             "DROP INDEX IF EXISTS ix_exam_scores_student_id",
             "DROP INDEX IF EXISTS ix_exam_scores_subject",
             "DROP INDEX IF EXISTS ix_exam_scores_student_subject",
 
-            // Disable triggers
             "ALTER TABLE students DISABLE TRIGGER ALL",
             "ALTER TABLE exam_scores DISABLE TRIGGER ALL"
         };
@@ -237,24 +225,19 @@ public class CsvImportService : ICsvImportService
     private static async Task ExecutePostImportAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
     {
         Console.WriteLine("[CSV Import] Starting post-import optimizations...");
-
         var commands = new[]
         {
-            // Set tables back to LOGGED
             "ALTER TABLE students SET LOGGED",
             "ALTER TABLE exam_scores SET LOGGED",
 
-            // Re-enable triggers
             "ALTER TABLE students ENABLE TRIGGER ALL",
             "ALTER TABLE exam_scores ENABLE TRIGGER ALL",
 
-            // Recreate indexes
             "CREATE UNIQUE INDEX ix_students_registration_number ON students(registration_number)",
             "CREATE INDEX ix_exam_scores_student_id ON exam_scores(student_id)",
             "CREATE INDEX ix_exam_scores_subject ON exam_scores(subject)",
             "CREATE UNIQUE INDEX ix_exam_scores_student_subject ON exam_scores(student_id, subject)",
 
-            // Analyze tables for query optimizer
             "ANALYZE students",
             "ANALYZE exam_scores"
         };
@@ -265,7 +248,7 @@ public class CsvImportService : ICsvImportService
             {
                 await using var cmd = new NpgsqlCommand(sql, connection)
                 {
-                    CommandTimeout = 3600 // 1 hour for index creation on large tables
+                    CommandTimeout = 3600 
                 };
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
